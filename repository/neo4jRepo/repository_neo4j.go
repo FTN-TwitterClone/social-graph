@@ -1,6 +1,7 @@
 package neo4jRepo
 
 import (
+	"fmt"
 	"github.com/neo4j/neo4j-go-driver/v4/neo4j"
 	"log"
 	"social-graph/model"
@@ -10,6 +11,10 @@ type RepositoryNeo4j struct {
 	Driver   neo4j.Driver
 	Database string
 }
+
+const (
+	query = "MATCH (u:User)%s(following)\nWHERE u.username = $username RETURN following.username as username"
+)
 
 func (repo *RepositoryNeo4j) SaveFollow(follow *model.Follows) (err error) {
 	session := repo.Driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite, DatabaseName: repo.Database})
@@ -45,7 +50,13 @@ func (repo *RepositoryNeo4j) RemoveFollow(follow *model.Follows) (err error) {
 
 	return err
 }
-func (repo *RepositoryNeo4j) Get(username string, query string) (users []model.User, err error) {
+func (repo *RepositoryNeo4j) GetFollowing(username string) (users []model.User, err error) {
+	return repo.GetUsers(username, fmt.Sprintf(query, "-[:FOLLOWS]->"))
+}
+func (repo *RepositoryNeo4j) GetFollowers(username string) (users []model.User, err error) {
+	return repo.GetUsers(username, fmt.Sprintf(query, "<-[:FOLLOWS]-"))
+}
+func (repo *RepositoryNeo4j) GetUsers(username string, query string) (users []model.User, err error) {
 	session := repo.Driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite, DatabaseName: repo.Database})
 	defer func() {
 		err = session.Close()

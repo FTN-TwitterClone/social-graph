@@ -32,9 +32,18 @@ func (s SocialGraphService) RemoveFollow(follow *model.Follows) error {
 
 	return nil
 }
-func (s SocialGraphService) Get(username string, query string) ([]model.User, error) {
+func (s SocialGraphService) GetFollowing(username string) ([]model.User, error) {
 
-	users, err := s.repo.Get(username, query)
+	users, err := s.repo.GetFollowing(username)
+	if err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}
+func (s SocialGraphService) GetFollowers(username string) ([]model.User, error) {
+
+	users, err := s.repo.GetFollowers(username)
 	if err != nil {
 		return nil, err
 	}
