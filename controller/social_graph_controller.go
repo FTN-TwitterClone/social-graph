@@ -33,8 +33,7 @@ func (sgc *SocialGraphController) RemoveFollow(w http.ResponseWriter, req *http.
 }
 func (sgc *SocialGraphController) GetFollowing(w http.ResponseWriter, req *http.Request) {
 	username := mux.Vars(req)["username"]
-	query := "MATCH (u:User)-[:FOLLOWS]->(following)\nWHERE u.username = $username RETURN following.username as username"
-	users, err := sgc.socialGraphService.Get(username, query)
+	users, err := sgc.socialGraphService.GetFollowing(username)
 	if err != nil {
 		return
 	}
@@ -45,8 +44,7 @@ func (sgc *SocialGraphController) GetFollowing(w http.ResponseWriter, req *http.
 }
 func (sgc *SocialGraphController) GetFollowers(w http.ResponseWriter, req *http.Request) {
 	username := mux.Vars(req)["username"]
-	query := "MATCH (u:User)<-[:FOLLOWS]-(following)\nWHERE u.username = $username RETURN following.username as username"
-	users, err := sgc.socialGraphService.Get(username, query)
+	users, err := sgc.socialGraphService.GetFollowers(username)
 	if err != nil {
 		return
 	}
