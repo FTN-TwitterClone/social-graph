@@ -15,8 +15,9 @@ func NewSocialGraphService(repo repository.SocialGraphRepository) *SocialGraphSe
 }
 
 func (s SocialGraphService) CreateFollow(follow *model.Follows) error {
-
-	err := s.repo.SaveFollow(follow)
+	//TODO call profile to check if to is private
+	// for now all is private
+	err := s.repo.SaveFollow(follow, true)
 	if err != nil {
 		return err
 	}
@@ -49,4 +50,18 @@ func (s SocialGraphService) GetFollowers(username string) ([]model.User, error) 
 	}
 
 	return users, nil
+}
+func (s SocialGraphService) CheckIfFollowExists(from string, to string) (bool, error) {
+	exists, err := s.repo.CheckIfFollowExists(from, to, false)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+func (s SocialGraphService) AcceptRejectFollowRequest(from string, to string, accepted bool) error {
+	err := s.repo.AcceptRejectFollowRequest(from, to, accepted)
+	if err != nil {
+		return err
+	}
+	return nil
 }

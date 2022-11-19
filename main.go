@@ -29,7 +29,11 @@ func main() {
 	router.HandleFunc("/follows", socialGraphController.CreateFollow).Methods("POST")
 	router.HandleFunc("/follows", socialGraphController.RemoveFollow).Methods("DELETE")
 	router.HandleFunc("/following/{username}", socialGraphController.GetFollowing).Methods("GET")
+	router.HandleFunc("/following/{username}/count", socialGraphController.GetNumberOfFollowing).Methods("GET")
 	router.HandleFunc("/followers/{username}", socialGraphController.GetFollowers).Methods("GET")
+	router.HandleFunc("/followers/{username}/count", socialGraphController.GetNumberOfFollowers).Methods("GET")
+	router.HandleFunc("/follows/{from}/{to}", socialGraphController.CheckIfFollowExists).Methods("GET")
+	router.HandleFunc("/follows/{from}/{to}", socialGraphController.AcceptRejectFollowRequest).Methods("PATCH")
 
 	allowedHeaders := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
 	allowedMethods := handlers.AllowedMethods([]string{"GET", "POST", "PUT", "HEAD", "OPTIONS"})
