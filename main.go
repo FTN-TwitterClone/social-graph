@@ -2,11 +2,17 @@ package main
 
 import (
 	"context"
+	social_graph "github.com/FTN-TwitterClone/grpc-stubs/social-graph"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/reflection"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -76,6 +82,25 @@ func main() {
 			}
 		}
 	}()
+
+	lis, err := net.Listen("tcp", "0.0.0.0:9001")
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+
+	creds := credentials.NewTLS(tls.GetgRPCClientTLSConfig())
+
+	grpcServer := grpc.NewServer(
+		grpc.Creds(creds),
+		grpc.UnaryInterceptor(otelgrpc.UnaryServerInterceptor()),
+	)
+
+	social_graph.RegisterSocialGraphServiceServer(grpcServer, service.NewgRPCSocialGraphService(tracer, repositoryNeo4j))
+	reflection.Register(grpcServer)
+	err = grpcServer.Serve(lis)
+	if err != nil {
+		return
+	}
 
 	sigCh := make(chan os.Signal)
 	signal.Notify(sigCh, os.Interrupt)
