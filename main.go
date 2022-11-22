@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	social_graph "github.com/FTN-TwitterClone/grpc-stubs/social-graph"
+	social_graph "github.com/FTN-TwitterClone/grpc-stubs/proto/social_graph"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"

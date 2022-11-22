@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	social_graph "github.com/FTN-TwitterClone/grpc-stubs/social-graph"
+	"github.com/FTN-TwitterClone/grpc-stubs/proto/social_graph"
 	"github.com/golang/protobuf/ptypes/empty"
 	"go.opentelemetry.io/otel/trace"
 	"social-graph/repository"
@@ -21,7 +21,7 @@ func NewgRPCSocialGraphService(tracer trace.Tracer, repo repository.SocialGraphR
 	}
 }
 
-func (s gRPCSocialGraphService) RegisterUser(ctx context.Context, user *social_graph.User) (*empty.Empty, error) {
+func (s gRPCSocialGraphService) RegisterUser(ctx context.Context, user *social_graph.SocialGraphUser) (*empty.Empty, error) {
 	//serviceCtx
 	_, span := s.tracer.Start(ctx, "gRPCSocialGraphService.RegisterUser")
 	defer span.End()
@@ -29,7 +29,7 @@ func (s gRPCSocialGraphService) RegisterUser(ctx context.Context, user *social_g
 	return new(empty.Empty), nil
 }
 
-func (s gRPCSocialGraphService) RegisterBusinessUser(ctx context.Context, user *social_graph.BusinessUser) (*empty.Empty, error) {
+func (s gRPCSocialGraphService) RegisterBusinessUser(ctx context.Context, user *social_graph.SocialGraphBusinessUser) (*empty.Empty, error) {
 	//serviceCtx
 	_, span := s.tracer.Start(ctx, "gRPCSocialGraphService.RegisterBusinessUser")
 	defer span.End()

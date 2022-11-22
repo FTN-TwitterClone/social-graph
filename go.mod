@@ -3,7 +3,7 @@ module social-graph
 go 1.18
 
 require (
-	github.com/FTN-TwitterClone/grpc-stubs v1.0.4
+	github.com/FTN-TwitterClone/grpc-stubs v1.0.7
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/golang/protobuf v1.5.2
 	github.com/gorilla/handlers v1.5.1
