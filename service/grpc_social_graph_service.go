@@ -25,7 +25,10 @@ func (s gRPCSocialGraphService) RegisterUser(ctx context.Context, user *social_g
 	//serviceCtx
 	_, span := s.tracer.Start(ctx, "gRPCSocialGraphService.RegisterUser")
 	defer span.End()
-
+	err := s.repo.CreateNewUser(ctx, user.Username, true)
+	if err != nil {
+		return nil, err
+	}
 	return new(empty.Empty), nil
 }
 
@@ -33,6 +36,9 @@ func (s gRPCSocialGraphService) RegisterBusinessUser(ctx context.Context, user *
 	//serviceCtx
 	_, span := s.tracer.Start(ctx, "gRPCSocialGraphService.RegisterBusinessUser")
 	defer span.End()
-
+	err := s.repo.CreateNewUser(ctx, user.Username, false)
+	if err != nil {
+		return nil, err
+	}
 	return new(empty.Empty), nil
 }
