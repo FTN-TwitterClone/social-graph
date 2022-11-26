@@ -2,6 +2,7 @@ package controller
 
 import (
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/otel/trace"
 	"net/http"
 	"social-graph/controller/json"
 	"social-graph/model"
@@ -10,16 +11,22 @@ import (
 
 type SocialGraphController struct {
 	socialGraphService service.SocialGraphService
+	tracer             trace.Tracer
 }
 
-func NewSocialGraphController(socialGraphService *service.SocialGraphService) *SocialGraphController {
-	return &SocialGraphController{*socialGraphService}
-
+func NewSocialGraphController(socialGraphService *service.SocialGraphService, tracer trace.Tracer) *SocialGraphController {
+	return &SocialGraphController{
+		*socialGraphService,
+		tracer,
+	}
 }
 
 func (sgc *SocialGraphController) CreateFollow(w http.ResponseWriter, req *http.Request) {
+	ctx, span := sgc.tracer.Start(req.Context(), "SocialGraphController.CreateFollow")
+	defer span.End()
+
 	f, _ := json.DecodeJson[model.Follows](req.Body)
-	err := sgc.socialGraphService.CreateFollow(&f)
+	err := sgc.socialGraphService.CreateFollow(ctx, &f)
 	if err != nil {
 		return
 	}

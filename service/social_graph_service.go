@@ -1,22 +1,29 @@
 package service
 
 import (
+	"context"
+	"go.opentelemetry.io/otel/trace"
 	"social-graph/model"
 	"social-graph/repository"
 )
 
 type SocialGraphService struct {
-	repo repository.SocialGraphRepository
+	repo   repository.SocialGraphRepository
+	tracer trace.Tracer
 }
 
-func NewSocialGraphService(repo repository.SocialGraphRepository) *SocialGraphService {
-	return &SocialGraphService{repo}
-
+func NewSocialGraphService(repo repository.SocialGraphRepository, tracer trace.Tracer) *SocialGraphService {
+	return &SocialGraphService{
+		repo,
+		tracer,
+	}
 }
 
-func (s SocialGraphService) CreateFollow(follow *model.Follows) error {
+func (s SocialGraphService) CreateFollow(ctx context.Context, follow *model.Follows) error {
+	serviceCtx, span := s.tracer.Start(ctx, "SocialGraphService.CreateFollow")
+	defer span.End()
 
-	err := s.repo.SaveFollow(follow)
+	err := s.repo.SaveFollow(serviceCtx, follow)
 	if err != nil {
 		return err
 	}
