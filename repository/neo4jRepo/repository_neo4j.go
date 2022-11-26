@@ -272,6 +272,18 @@ func (repo *RepositoryNeo4j) CheckIfFollowExists(ctx context.Context, usernameFr
 	return rez.(bool), nil
 }
 
+func (repo *RepositoryNeo4j) CanAccessTweetOfAnotherUser(ctx context.Context, usernameFromToken string, usernameForAccess string) (bool, error) {
+	if usernameFromToken == usernameForAccess {
+		return true, nil
+	}
+	userForAccess, _ := repo.GetUser(ctx, usernameForAccess)
+	if !userForAccess.IsPrivate {
+		return true, nil
+	}
+
+	return repo.CheckIfFollowExists(ctx, usernameFromToken, usernameForAccess)
+
+}
 func (repo *RepositoryNeo4j) AcceptRejectFollowRequest(ctx context.Context, from string, to string, approved bool) (err error) {
 	_, span := repo.tracer.Start(ctx, "RepositoryNeo4j.AcceptRejectFollowRequest")
 	defer span.End()
