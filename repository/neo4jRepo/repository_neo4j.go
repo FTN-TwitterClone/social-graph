@@ -1,8 +1,10 @@
 package neo4jRepo
 
 import (
+	"context"
 	"fmt"
 	"github.com/neo4j/neo4j-go-driver/v4/neo4j"
+	"go.opentelemetry.io/otel/trace"
 	"log"
 	"os"
 	"social-graph/model"
@@ -10,13 +12,14 @@ import (
 
 type RepositoryNeo4j struct {
 	driver neo4j.Driver
+	tracer trace.Tracer
 }
 
 const (
 	query = "MATCH (u:User)%s(following)\nWHERE u.username = $username RETURN following.username as username"
 )
 
-func NewRepositoryNeo4j() (*RepositoryNeo4j, error) {
+func NewRepositoryNeo4j(tracer trace.Tracer) (*RepositoryNeo4j, error) {
 	db := os.Getenv("DB")
 	dbport := os.Getenv("DBPORT")
 	user := os.Getenv("DB_USER")
@@ -31,10 +34,14 @@ func NewRepositoryNeo4j() (*RepositoryNeo4j, error) {
 
 	return &RepositoryNeo4j{
 		driver,
+		tracer,
 	}, err
 }
 
-func (repo *RepositoryNeo4j) SaveFollow(follow *model.Follows, isPrivate bool) (err error) {
+func (repo *RepositoryNeo4j) SaveFollow(ctx context.Context, follow *model.Follows, isPrivate bool) (err error) {
+	_, span := repo.tracer.Start(ctx, "RepositoryNeo4j.SaveFollow")
+	defer span.End()
+
 	exists, _ := repo.CheckIfFollowExists(follow.From.Username, follow.To.Username, true)
 	if exists {
 		return nil
