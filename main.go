@@ -94,7 +94,7 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	creds := credentials.NewTLS(tls.GetgRPCClientTLSConfig())
+	creds := credentials.NewTLS(tls.GetgRPCServerTLSConfig())
 
 	grpcServer := grpc.NewServer(
 		grpc.Creds(creds),
