@@ -19,4 +19,5 @@ type SocialGraphRepository interface {
 	CheckIfFollowRequestExists(ctx context.Context, from string, to string) (bool, error)
 	GetAllFollowRequests(ctx context.Context, username string) ([]model.User, error)
 	CanAccessTweetOfAnotherUser(ctx context.Context, usernameFromToken string, usernameForAccess string) (bool, error)
+	UpdateUser(ctx context.Context, isPrivate bool) error
 }

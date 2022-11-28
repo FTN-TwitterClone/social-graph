@@ -305,3 +305,24 @@ func (repo *RepositoryNeo4j) AcceptRejectFollowRequest(ctx context.Context, from
 
 	return nil
 }
+func (repo *RepositoryNeo4j) UpdateUser(ctx context.Context, isPrivate bool) (err error) {
+	_, span := repo.tracer.Start(ctx, "RepositoryNeo4j.UpdateUser")
+	defer span.End()
+	authUser := ctx.Value("authUser").(model.AuthUser)
+
+	session := repo.driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
+
+	defer func() {
+		err = session.Close()
+	}()
+	_, err = session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
+		_, err := tx.Run("match (u:User {username:$username}) set u.private= $isPrivate", map[string]interface{}{"username": authUser.Username, "isPrivate": isPrivate})
+		if err != nil {
+			log.Println(err)
+			return nil, err
+		}
+		return nil, nil
+	})
+
+	return err
+}
