@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	social_graph "github.com/FTN-TwitterClone/grpc-stubs/proto/social_graph"
+	"github.com/FTN-TwitterClone/grpc-stubs/proto/social_graph"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -54,10 +54,16 @@ func main() {
 		jwt.ExtractJWTUserMiddleware(tracer),
 	)
 
-	router.HandleFunc("/follows", socialGraphController.CreateFollow).Methods("POST")
-	router.HandleFunc("/follows", socialGraphController.RemoveFollow).Methods("DELETE")
-	router.HandleFunc("/following/{username}", socialGraphController.GetFollowing).Methods("GET")
-	router.HandleFunc("/followers/{username}", socialGraphController.GetFollowers).Methods("GET")
+	router.HandleFunc("/follows/{username}", socialGraphController.CreateFollow).Methods("POST")
+	router.HandleFunc("/follows/{username}", socialGraphController.RemoveFollow).Methods("DELETE")
+	router.HandleFunc("/following", socialGraphController.GetFollowing).Methods("GET")
+	router.HandleFunc("/following/count", socialGraphController.GetNumberOfFollowing).Methods("GET")
+	router.HandleFunc("/followers", socialGraphController.GetFollowers).Methods("GET")
+	router.HandleFunc("/followers/count", socialGraphController.GetNumberOfFollowers).Methods("GET")
+	router.HandleFunc("/follows/{username}", socialGraphController.CheckIfFollowExists).Methods("GET")
+	router.HandleFunc("/follows-request/{username}", socialGraphController.CheckIfFollowRequestExists).Methods("GET")
+	router.HandleFunc("/follows-request", socialGraphController.GetAllFollowRequests).Methods("GET")
+	router.HandleFunc("/follows/{username}", socialGraphController.AcceptRejectFollowRequest).Methods("PATCH")
 
 	allowedHeaders := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
 	allowedMethods := handlers.AllowedMethods([]string{"GET", "POST", "PUT", "HEAD", "OPTIONS"})

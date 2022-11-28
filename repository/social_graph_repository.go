@@ -6,8 +6,18 @@ import (
 )
 
 type SocialGraphRepository interface {
-	SaveFollow(ctx context.Context, follow *model.Follows) error
-	RemoveFollow(follow *model.Follows) error
-	GetFollowing(username string) ([]model.User, error)
-	GetFollowers(username string) ([]model.User, error)
+	CreateNewUser(ctx context.Context, username string, isPrivate bool) error
+	SaveApprovedFollow(ctx context.Context, fromUsername string, toUsername string) error
+	RemoveApprovedFollow(ctx context.Context, fromUsername string, toUsername string) error
+	RemoveFollowRequest(ctx context.Context, fromUsername string, toUsername string) error
+	SaveFollowRequest(ctx context.Context, fromUsername string, toUsername string) error
+	GetFollowing(ctx context.Context, username string) ([]model.User, error)
+	GetFollowers(ctx context.Context, username string) ([]model.User, error)
+	CheckIfFollowExists(ctx context.Context, from string, to string) (bool, error)
+	AcceptRejectFollowRequest(ctx context.Context, from string, to string, approved bool) error
+	GetUser(ctx context.Context, username string) (user model.User, err error)
+	CheckIfFollowRequestExists(ctx context.Context, from string, to string) (bool, error)
+	GetAllFollowRequests(ctx context.Context, username string) ([]model.User, error)
+	CanAccessTweetOfAnotherUser(ctx context.Context, usernameFromToken string, usernameForAccess string) (bool, error)
+	UpdateUser(ctx context.Context, isPrivate bool) error
 }

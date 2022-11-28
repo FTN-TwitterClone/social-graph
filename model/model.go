@@ -2,7 +2,7 @@ package model
 
 import "time"
 
-//Info from JWT token
+// Info from JWT token
 type AuthUser struct {
 	Username string
 	Role     string
@@ -10,10 +10,15 @@ type AuthUser struct {
 }
 
 type User struct {
-	Username string `json:"username"`
+	Username  string `json:"username"`
+	IsPrivate bool   `json:"private"`
 }
 
 type Follows struct {
 	From User `json:"from"`
 	To   User `json:"to"`
+}
+
+type Approved struct {
+	Approved bool `json:"approved"`
 }
