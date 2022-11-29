@@ -5,6 +5,7 @@ import (
 	"github.com/FTN-TwitterClone/grpc-stubs/proto/social_graph"
 	"github.com/golang/protobuf/ptypes/empty"
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"social-graph/model"
 	"social-graph/repository"
@@ -68,7 +69,15 @@ func (s gRPCSocialGraphService) SocialGraphUpdateUser(ctx context.Context, user 
 	serviceCtx, span := s.tracer.Start(ctx, "gRPCSocialGraphService.SocialGraphUpdatedUser")
 	defer span.End()
 
-	err := s.repo.UpdateUser(serviceCtx, user.Private)
+	md, ok := metadata.FromIncomingContext(ctx)
+
+	if !ok {
+		return new(empty.Empty), nil
+	}
+
+	authUsername := md.Get("authUsername")[0]
+
+	err := s.repo.UpdateUser(serviceCtx, user.Private, authUsername)
 	if err != nil {
 		return nil, err
 	}
