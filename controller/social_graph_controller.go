@@ -50,8 +50,8 @@ func (sgc *SocialGraphController) RemoveFollow(w http.ResponseWriter, req *http.
 func (sgc *SocialGraphController) GetFollowing(w http.ResponseWriter, req *http.Request) {
 	ctx, span := sgc.tracer.Start(req.Context(), "SocialGraphController.GetFollowing")
 	defer span.End()
-	authUser := ctx.Value("authUser").(model.AuthUser)
-	users, err := sgc.socialGraphService.GetFollowing(ctx, authUser.Username)
+	username := mux.Vars(req)["username"]
+	users, err := sgc.socialGraphService.GetFollowing(ctx, username)
 	if err != nil {
 		return
 	}
@@ -63,8 +63,8 @@ func (sgc *SocialGraphController) GetFollowing(w http.ResponseWriter, req *http.
 func (sgc *SocialGraphController) GetNumberOfFollowing(w http.ResponseWriter, req *http.Request) {
 	ctx, span := sgc.tracer.Start(req.Context(), "SocialGraphController.GetNumberOfFollowing")
 	defer span.End()
-	authUser := ctx.Value("authUser").(model.AuthUser)
-	users, err := sgc.socialGraphService.GetFollowing(ctx, authUser.Username)
+	username := mux.Vars(req)["username"]
+	users, err := sgc.socialGraphService.GetFollowing(ctx, username)
 	if err != nil {
 		return
 	}
@@ -77,8 +77,8 @@ func (sgc *SocialGraphController) GetNumberOfFollowing(w http.ResponseWriter, re
 func (sgc *SocialGraphController) GetFollowers(w http.ResponseWriter, req *http.Request) {
 	ctx, span := sgc.tracer.Start(req.Context(), "SocialGraphController.GetFollowers")
 	defer span.End()
-	authUser := ctx.Value("authUser").(model.AuthUser)
-	users, err := sgc.socialGraphService.GetFollowers(ctx, authUser.Username)
+	username := mux.Vars(req)["username"]
+	users, err := sgc.socialGraphService.GetFollowers(ctx, username)
 	if err != nil {
 		return
 	}
@@ -90,8 +90,8 @@ func (sgc *SocialGraphController) GetFollowers(w http.ResponseWriter, req *http.
 func (sgc *SocialGraphController) GetNumberOfFollowers(w http.ResponseWriter, req *http.Request) {
 	ctx, span := sgc.tracer.Start(req.Context(), "SocialGraphController.GetNumberOfFollowers")
 	defer span.End()
-	authUser := ctx.Value("authUser").(model.AuthUser)
-	users, err := sgc.socialGraphService.GetFollowers(ctx, authUser.Username)
+	username := mux.Vars(req)["username"]
+	users, err := sgc.socialGraphService.GetFollowers(ctx, username)
 	if err != nil {
 		return
 	}
@@ -132,8 +132,8 @@ func (sgc *SocialGraphController) CheckIfFollowRequestExists(w http.ResponseWrit
 	ctx, span := sgc.tracer.Start(req.Context(), "SocialGraphController.CheckIfFollowRequestExists")
 	defer span.End()
 	authUser := ctx.Value("authUser").(model.AuthUser)
-	to := mux.Vars(req)["username"]
-	exists, err := sgc.socialGraphService.CheckIfFollowRequestExists(ctx, authUser.Username, to)
+	from := mux.Vars(req)["username"]
+	exists, err := sgc.socialGraphService.CheckIfFollowRequestExists(ctx, from, authUser.Username)
 	if err != nil {
 		return
 	}
