@@ -47,8 +47,12 @@ func (s gRPCSocialGraphService) RegisterBusinessUser(ctx context.Context, user *
 func (s gRPCSocialGraphService) CheckVisibility(ctx context.Context, gRPCUsername *social_graph.SocialGraphUsername) (*social_graph.SocialGraphVisibilityUserResponse, error) {
 	serviceCtx, span := s.tracer.Start(ctx, "gRPCSocialGraphService.CheckVisibility")
 	defer span.End()
-	authUser := serviceCtx.Value("authUser").(model.AuthUser)
-	visible, _ := s.repo.CanAccessTweetOfAnotherUser(ctx, authUser.Username, gRPCUsername.Username)
+
+	md, _ := metadata.FromIncomingContext(ctx)
+
+	authUsername := md.Get("authUsername")[0]
+
+	visible, _ := s.repo.CanAccessTweetOfAnotherUser(serviceCtx, authUsername, gRPCUsername.Username)
 
 	return &social_graph.SocialGraphVisibilityUserResponse{Visibility: visible}, nil
 }
