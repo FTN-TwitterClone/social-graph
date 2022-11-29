@@ -198,7 +198,7 @@ func (repo *RepositoryNeo4j) GetAllFollowRequests(ctx context.Context, username 
 		err = session.Close()
 	}()
 	rez, err := session.ReadTransaction(func(tx neo4j.Transaction) (interface{}, error) {
-		records, err := tx.Run("MATCH (u:User)-[:FOLLOWS_REQUEST]->(request) WHERE u.username = $username RETURN request.username as username, request.private as private", map[string]interface{}{"username": username})
+		records, err := tx.Run("MATCH (u:User)<-[:FOLLOWS_REQUEST]-(request) WHERE u.username = $username RETURN request.username as username, request.private as private", map[string]interface{}{"username": username})
 		if err != nil {
 			log.Println(err)
 
