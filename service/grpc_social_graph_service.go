@@ -7,7 +7,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/emptypb"
-	"social-graph/model"
 	"social-graph/repository"
 )
 
@@ -49,7 +48,6 @@ func (s gRPCSocialGraphService) CheckVisibility(ctx context.Context, gRPCUsernam
 	defer span.End()
 
 	md, _ := metadata.FromIncomingContext(ctx)
-
 	authUsername := md.Get("authUsername")[0]
 
 	visible, _ := s.repo.CanAccessTweetOfAnotherUser(serviceCtx, authUsername, gRPCUsername.Username)
@@ -60,8 +58,11 @@ func (s gRPCSocialGraphService) CheckVisibility(ctx context.Context, gRPCUsernam
 func (s gRPCSocialGraphService) GetMyFollowers(ctx context.Context, empty *emptypb.Empty) (*social_graph.SocialGraphFollowers, error) {
 	serviceCtx, span := s.tracer.Start(ctx, "gRPCSocialGraphService.GetMyFollowers")
 	defer span.End()
-	authUser := ctx.Value("authUser").(model.AuthUser)
-	users, _ := s.repo.GetFollowers(serviceCtx, authUser.Username)
+
+	md, _ := metadata.FromIncomingContext(ctx)
+	authUsername := md.Get("authUsername")[0]
+
+	users, _ := s.repo.GetFollowers(serviceCtx, authUsername)
 	usersUsername := []*social_graph.SocialGraphUsername{}
 	for _, user := range users {
 		usersUsername = append(usersUsername, &social_graph.SocialGraphUsername{Username: user.Username})
