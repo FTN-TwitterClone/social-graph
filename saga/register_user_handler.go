@@ -71,12 +71,31 @@ func (h RegisterUserHandler) handleSaveSocialGraph(ctx context.Context, user New
 	handlerCtx, span := h.tracer.Start(ctx, "RegisterUserHandler.handleSaveSocialGraph")
 	defer span.End()
 
-	r := RegisterUserReply{
-		Reply: SocialGraphSuccess,
-		User:  user,
+	//TODO: save user with all details
+	var private bool
+
+	if user.Role == "ROLE_USER" {
+		private = true
+	} else {
+		private = false
 	}
 
-	h.sendReply(handlerCtx, r)
+	err := h.repo.CreateNewUser(handlerCtx, user.Username, private)
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+
+		h.sendReply(handlerCtx, RegisterUserReply{
+			Reply: SocialGraphFail,
+			User:  user,
+		})
+
+		return
+	}
+
+	h.sendReply(handlerCtx, RegisterUserReply{
+		Reply: SocialGraphSuccess,
+		User:  user,
+	})
 
 }
 
