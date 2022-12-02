@@ -19,6 +19,7 @@ import (
 	"social-graph/controller"
 	"social-graph/controller/jwt"
 	"social-graph/repository/neo4jRepo"
+	"social-graph/saga"
 	"social-graph/service"
 	"social-graph/tls"
 	"social-graph/tracing"
@@ -41,6 +42,11 @@ func main() {
 	otel.SetTextMapPropagator(propagation.TraceContext{})
 
 	repositoryNeo4j, err := neo4jRepo.NewRepositoryNeo4j(tracer)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_, err = saga.NewRegisterUserHandler(tracer, repositoryNeo4j)
 	if err != nil {
 		log.Fatal(err)
 	}
