@@ -67,17 +67,15 @@ func (repo *RepositoryNeo4j) GetUser(ctx context.Context, username string) (user
 	return rez.(model.User), nil
 }
 
-func (repo *RepositoryNeo4j) CreateNewUser(ctx context.Context, username string, isPrivate bool) (err error) {
+func (repo *RepositoryNeo4j) CreateNewUser(ctx context.Context, username string, isPrivate bool) error {
 	_, span := repo.tracer.Start(ctx, "RepositoryNeo4j.CreateNewUser")
 	defer span.End()
 
 	session := repo.driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
 
-	defer func() {
-		err = session.Close()
-	}()
-	_, err = session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
+	defer session.Close()
 
+	_, err := session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
 		_, err := tx.Run("Create(u:User {username: $username, private: $private})", map[string]interface{}{"username": username, "private": isPrivate})
 		if err != nil {
 			log.Println(err)

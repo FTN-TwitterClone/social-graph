@@ -19,6 +19,7 @@ import (
 	"social-graph/controller"
 	"social-graph/controller/jwt"
 	"social-graph/repository/neo4jRepo"
+	"social-graph/saga"
 	"social-graph/service"
 	"social-graph/tls"
 	"social-graph/tracing"
@@ -45,6 +46,11 @@ func main() {
 		log.Fatal(err)
 	}
 
+	_, err = saga.NewRegisterUserHandler(tracer, repositoryNeo4j)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	socialGraphService := service.NewSocialGraphService(repositoryNeo4j, tracer)
 
 	socialGraphController := controller.NewSocialGraphController(socialGraphService, tracer)
@@ -66,7 +72,7 @@ func main() {
 	router.HandleFunc("/follows/{username}", socialGraphController.AcceptRejectFollowRequest).Methods("PATCH")
 
 	allowedHeaders := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
-	allowedMethods := handlers.AllowedMethods([]string{"GET", "POST", "PUT", "HEAD", "OPTIONS"})
+	allowedMethods := handlers.AllowedMethods([]string{"GET", "POST", "PUT", "PATCH", "HEAD", "OPTIONS"})
 	allowedOrigins := handlers.AllowedOrigins([]string{"*"})
 
 	// start server
