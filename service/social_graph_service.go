@@ -30,27 +30,30 @@ func NewSocialGraphService(repo repository.SocialGraphRepository, tracer trace.T
 func (s SocialGraphService) CreateFollow(ctx context.Context, fromUsername string, toUsername string) error {
 	serviceCtx, span := s.tracer.Start(ctx, "SocialGraphService.CreateFollow")
 	defer span.End()
-	user, err2 := s.repo.GetUser(serviceCtx, toUsername)
-	if err2 != nil {
-		return err2
+	user, er := s.repo.GetUser(serviceCtx, toUsername)
+	if er != nil {
+		span.SetStatus(codes.Error, er.Error())
+		return er
 	}
 	if user.IsPrivate {
 		err := s.repo.SaveFollowRequest(serviceCtx, fromUsername, toUsername)
 		if err != nil {
+			span.SetStatus(codes.Error, err.Error())
 			return err
 		}
 
 	} else {
 		err := s.repo.SaveApprovedFollow(serviceCtx, fromUsername, toUsername)
 		if err != nil {
+			span.SetStatus(codes.Error, err.Error())
 			return err
 		}
 
-		conn, err := getgRPCConnection("tweet:9001")
+		conn, errConn := getgRPCConnection("tweet:9001")
 		defer conn.Close()
-		if err != nil {
-			span.SetStatus(codes.Error, err.Error())
-			return err
+		if errConn != nil {
+			span.SetStatus(codes.Error, errConn.Error())
+			return errConn
 		}
 
 		tweetService := tweet.NewTweetServiceClient(conn)
@@ -59,61 +62,64 @@ func (s SocialGraphService) CreateFollow(ctx context.Context, fromUsername strin
 			Username: toUsername,
 		}
 
-		_, error := tweetService.UpdateFeed(serviceCtx, &u)
-		if error != nil {
-			span.SetStatus(codes.Error, err.Error())
-			return error
+		_, e := tweetService.UpdateFeed(serviceCtx, &u)
+		if e != nil {
+			span.SetStatus(codes.Error, e.Error())
+			return e
 		}
-
 	}
-
 	return nil
 }
 func (s SocialGraphService) RemoveFollow(ctx context.Context, fromUsername string, toUsername string) error {
-	ctx, span := s.tracer.Start(ctx, "SocialGraphService.RemoveFollow")
+	serviceCtx, span := s.tracer.Start(ctx, "SocialGraphService.RemoveFollow")
 	defer span.End()
-	err := s.repo.RemoveApprovedFollow(ctx, fromUsername, toUsername)
+	err := s.repo.RemoveApprovedFollow(serviceCtx, fromUsername, toUsername)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
 
 	return nil
 }
 func (s SocialGraphService) GetFollowing(ctx context.Context, username string) ([]model.User, error) {
-	ctx, span := s.tracer.Start(ctx, "SocialGraphService.GetFollowing")
+	serviceCtx, span := s.tracer.Start(ctx, "SocialGraphService.GetFollowing")
 	defer span.End()
-	users, err := s.repo.GetFollowing(ctx, username)
+	users, err := s.repo.GetFollowing(serviceCtx, username)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
 
 	return users, nil
 }
 func (s SocialGraphService) GetFollowers(ctx context.Context, username string) ([]model.User, error) {
-	ctx, span := s.tracer.Start(ctx, "SocialGraphService.GetFollowers")
+	serviceCtx, span := s.tracer.Start(ctx, "SocialGraphService.GetFollowers")
 	defer span.End()
-	users, err := s.repo.GetFollowers(ctx, username)
+	users, err := s.repo.GetFollowers(serviceCtx, username)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
 
 	return users, nil
 }
 func (s SocialGraphService) CheckIfFollowExists(ctx context.Context, from string, to string) (bool, error) {
-	ctx, span := s.tracer.Start(ctx, "SocialGraphService.CheckIfFollowExists")
+	serviceCtx, span := s.tracer.Start(ctx, "SocialGraphService.CheckIfFollowExists")
 	defer span.End()
-	exists, err := s.repo.CheckIfFollowExists(ctx, from, to)
+	exists, err := s.repo.CheckIfFollowExists(serviceCtx, from, to)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return false, err
 	}
 	return exists, nil
 }
 
 func (s SocialGraphService) CheckIfFollowRequestExists(ctx context.Context, from string, to string) (bool, error) {
-	ctx, span := s.tracer.Start(ctx, "SocialGraphService.CheckIfFollowRequestExists")
+	serviceCtx, span := s.tracer.Start(ctx, "SocialGraphService.CheckIfFollowRequestExists")
 	defer span.End()
-	exists, err := s.repo.CheckIfFollowRequestExists(ctx, from, to)
+	exists, err := s.repo.CheckIfFollowRequestExists(serviceCtx, from, to)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return false, err
 	}
 	return exists, nil
@@ -144,36 +150,40 @@ func (s SocialGraphService) AcceptRejectFollowRequest(ctx context.Context, from 
 
 	}
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
 	return nil
 }
 
 func (s SocialGraphService) GetAllFollowRequests(ctx context.Context, username string) ([]model.User, error) {
-	ctx, span := s.tracer.Start(ctx, "SocialGraphService.GetAllFollowRequests")
+	serviceCtx, span := s.tracer.Start(ctx, "SocialGraphService.GetAllFollowRequests")
 	defer span.End()
-	users, err := s.repo.GetAllFollowRequests(ctx, username)
+	users, err := s.repo.GetAllFollowRequests(serviceCtx, username)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
 
 	return users, nil
 }
 func (s SocialGraphService) GetRecommendationsProfile(ctx context.Context, username string) ([]model.User, error) {
-	ctx, span := s.tracer.Start(ctx, "SocialGraphService.GetRecommendationsProfile")
+	serviceCtx, span := s.tracer.Start(ctx, "SocialGraphService.GetRecommendationsProfile")
 	defer span.End()
 
-	followersCount, err := s.repo.GetFollowers(ctx, username)
+	followersCount, err := s.repo.GetFollowers(serviceCtx, username)
 	if len(followersCount) == 0 {
-		users, err := s.repo.GetAllUsers(ctx, username)
+		users, err := s.repo.GetAllUsers(serviceCtx, username)
 		if err != nil {
+			span.SetStatus(codes.Error, err.Error())
 			return nil, err
 		}
 		return users, nil
 
 	}
-	users, err := s.repo.GetRecommendationsProfile(ctx, username)
+	users, err := s.repo.GetRecommendationsProfile(serviceCtx, username)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
 

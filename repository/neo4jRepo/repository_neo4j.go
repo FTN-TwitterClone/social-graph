@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/neo4j/neo4j-go-driver/v4/neo4j"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"log"
 	"os"
@@ -40,17 +41,16 @@ func NewRepositoryNeo4j(tracer trace.Tracer) (*RepositoryNeo4j, error) {
 	}, err
 }
 
-func (repo *RepositoryNeo4j) GetUser(ctx context.Context, username string) (user model.User, err error) {
+func (repo *RepositoryNeo4j) GetUser(ctx context.Context, username string) (model.User, error) {
 	_, span := repo.tracer.Start(ctx, "RepositoryNeo4j.GetUser")
 	defer span.End()
 	session := repo.driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
-	defer func() {
-		err = session.Close()
-	}()
+	defer session.Close()
 
-	rez, err := session.ReadTransaction(func(tx neo4j.Transaction) (interface{}, error) {
+	rez, er := session.ReadTransaction(func(tx neo4j.Transaction) (interface{}, error) {
 		result, err := tx.Run("match (u:User {username: $username}) return u.username as username, u.private as private", map[string]interface{}{"username": username})
 		if err != nil {
+			span.SetStatus(codes.Error, err.Error())
 			log.Println(err)
 			return nil, err
 		}
@@ -63,83 +63,90 @@ func (repo *RepositoryNeo4j) GetUser(ctx context.Context, username string) (user
 		p, _ := r.Get("private")
 		return model.User{Username: u.(string), IsPrivate: p.(bool)}, nil
 	})
+	if er != nil {
+		span.SetStatus(codes.Error, er.Error())
+		return model.User{}, er
+	}
 
 	return rez.(model.User), nil
 }
 
-func (repo *RepositoryNeo4j) CreateNewUser(ctx context.Context, username string, isPrivate bool) (err error) {
+func (repo *RepositoryNeo4j) CreateNewUser(ctx context.Context, username string, isPrivate bool) error {
 	_, span := repo.tracer.Start(ctx, "RepositoryNeo4j.CreateNewUser")
 	defer span.End()
 
 	session := repo.driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
 
-	defer func() {
-		err = session.Close()
-	}()
-	_, err = session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
+	defer session.Close()
+	_, err := session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
 
 		_, err := tx.Run("Merge(u:User {username: $username, private: $private})", map[string]interface{}{"username": username, "private": isPrivate})
 		if err != nil {
+			span.SetStatus(codes.Error, err.Error())
 			log.Println(err)
 			return nil, err
 		}
 		return nil, nil
 	})
 
-	return err
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+	return nil
 
 }
 
-func (repo *RepositoryNeo4j) SaveApprovedFollow(ctx context.Context, fromUsername string, toUsername string) (err error) {
+func (repo *RepositoryNeo4j) SaveApprovedFollow(ctx context.Context, fromUsername string, toUsername string) error {
 	_, span := repo.tracer.Start(ctx, "RepositoryNeo4j.SaveApprovedFollow")
 	defer span.End()
 	return repo.SaveFollow(ctx, fromUsername, toUsername, fmt.Sprintf(followQuery, "FOLLOWS"))
 }
-func (repo *RepositoryNeo4j) SaveFollowRequest(ctx context.Context, fromUsername string, toUsername string) (err error) {
+func (repo *RepositoryNeo4j) SaveFollowRequest(ctx context.Context, fromUsername string, toUsername string) error {
 	_, span := repo.tracer.Start(ctx, "RepositoryNeo4j.SaveFollowRequest")
 	defer span.End()
 	return repo.SaveFollow(ctx, fromUsername, toUsername, fmt.Sprintf(followQuery, "FOLLOWS_REQUEST"))
 }
-func (repo *RepositoryNeo4j) SaveFollow(ctx context.Context, fromUsername string, toUsername string, query string) (err error) {
+func (repo *RepositoryNeo4j) SaveFollow(ctx context.Context, fromUsername string, toUsername string, query string) error {
 	_, span := repo.tracer.Start(ctx, "RepositoryNeo4j.SaveFollow")
 	defer span.End()
 
 	session := repo.driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
 
-	defer func() {
-		err = session.Close()
-	}()
-	_, err = session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
+	defer session.Close()
+	_, er := session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
 		_, err := tx.Run(query, map[string]interface{}{"from": fromUsername, "to": toUsername})
 		if err != nil {
+			span.SetStatus(codes.Error, err.Error())
 			log.Println(err)
 			return nil, err
 		}
 		return nil, nil
 	})
-
-	return err
+	if er != nil {
+		span.SetStatus(codes.Error, er.Error())
+		return er
+	}
+	return nil
 }
-func (repo *RepositoryNeo4j) RemoveApprovedFollow(ctx context.Context, fromUsername string, toUsername string) (err error) {
+func (repo *RepositoryNeo4j) RemoveApprovedFollow(ctx context.Context, fromUsername string, toUsername string) error {
 	_, span := repo.tracer.Start(ctx, "RepositoryNeo4j.RemoveApprovedFollow")
 	defer span.End()
 	return repo.RemoveFollow(ctx, fromUsername, toUsername, fmt.Sprintf(removeQuery, "FOLLOWS"))
 }
-func (repo *RepositoryNeo4j) RemoveFollowRequest(ctx context.Context, fromUsername string, toUsername string) (err error) {
+func (repo *RepositoryNeo4j) RemoveFollowRequest(ctx context.Context, fromUsername string, toUsername string) error {
 	_, span := repo.tracer.Start(ctx, "RepositoryNeo4j.RemoveFollowRequest")
 	defer span.End()
 	return repo.RemoveFollow(ctx, fromUsername, toUsername, fmt.Sprintf(removeQuery, "FOLLOWS_REQUEST"))
 }
-func (repo *RepositoryNeo4j) RemoveFollow(ctx context.Context, fromUsername string, toUsername string, query string) (err error) {
+func (repo *RepositoryNeo4j) RemoveFollow(ctx context.Context, fromUsername string, toUsername string, query string) error {
 
 	_, span := repo.tracer.Start(ctx, "RepositoryNeo4j.RemoveFollow")
 	defer span.End()
 	session := repo.driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
 
-	defer func() {
-		err = session.Close()
-	}()
-	_, err = session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
+	defer session.Close()
+	_, er := session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
 		_, err := tx.Run(query, map[string]interface{}{"from": fromUsername, "to": toUsername})
 		if err != nil {
 			log.Println(err)
@@ -147,27 +154,28 @@ func (repo *RepositoryNeo4j) RemoveFollow(ctx context.Context, fromUsername stri
 		}
 		return nil, nil
 	})
-
-	return err
+	if er != nil {
+		span.SetStatus(codes.Error, er.Error())
+		return er
+	}
+	return nil
 }
-func (repo *RepositoryNeo4j) GetFollowing(ctx context.Context, username string) (users []model.User, err error) {
+func (repo *RepositoryNeo4j) GetFollowing(ctx context.Context, username string) ([]model.User, error) {
 	_, span := repo.tracer.Start(ctx, "RepositoryNeo4j.GetFollowing")
 	defer span.End()
 	return repo.GetAllFollow(ctx, username, fmt.Sprintf(query, "-[:FOLLOWS]->"))
 }
-func (repo *RepositoryNeo4j) GetFollowers(ctx context.Context, username string) (users []model.User, err error) {
+func (repo *RepositoryNeo4j) GetFollowers(ctx context.Context, username string) ([]model.User, error) {
 	_, span := repo.tracer.Start(ctx, "RepositoryNeo4j.GetFollowers")
 	defer span.End()
 	return repo.GetAllFollow(ctx, username, fmt.Sprintf(query, "<-[:FOLLOWS]-"))
 }
-func (repo *RepositoryNeo4j) GetAllFollow(ctx context.Context, username string, query string) (users []model.User, err error) {
+func (repo *RepositoryNeo4j) GetAllFollow(ctx context.Context, username string, query string) ([]model.User, error) {
 	_, span := repo.tracer.Start(ctx, "RepositoryNeo4j.GetAllFollow")
 	defer span.End()
 	session := repo.driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
-	defer func() {
-		err = session.Close()
-	}()
-	rez, err := session.ReadTransaction(func(tx neo4j.Transaction) (interface{}, error) {
+	defer session.Close()
+	rez, _ := session.ReadTransaction(func(tx neo4j.Transaction) (interface{}, error) {
 		records, err := tx.Run(query, map[string]interface{}{"username": username})
 		if err != nil {
 			log.Println(err)
@@ -184,20 +192,19 @@ func (repo *RepositoryNeo4j) GetAllFollow(ctx context.Context, username string, 
 		}
 		return results, nil
 	})
+
 	if rez == nil || rez.([]model.User) == nil {
 		return []model.User{}, nil
 	}
 	return rez.([]model.User), nil
 }
 
-func (repo *RepositoryNeo4j) GetAllFollowRequests(ctx context.Context, username string) (users []model.User, err error) {
+func (repo *RepositoryNeo4j) GetAllFollowRequests(ctx context.Context, username string) ([]model.User, error) {
 	_, span := repo.tracer.Start(ctx, "RepositoryNeo4j.GetAllFollowRequests")
 	defer span.End()
 	session := repo.driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
-	defer func() {
-		err = session.Close()
-	}()
-	rez, err := session.ReadTransaction(func(tx neo4j.Transaction) (interface{}, error) {
+	defer session.Close()
+	rez, _ := session.ReadTransaction(func(tx neo4j.Transaction) (interface{}, error) {
 		records, err := tx.Run("MATCH (u:User)<-[:FOLLOWS_REQUEST]-(request) WHERE u.username = $username RETURN request.username as username, request.private as private", map[string]interface{}{"username": username})
 		if err != nil {
 			log.Println(err)
@@ -220,15 +227,13 @@ func (repo *RepositoryNeo4j) GetAllFollowRequests(ctx context.Context, username 
 	return rez.([]model.User), nil
 }
 
-func (repo *RepositoryNeo4j) CheckIfFollowRequestExists(ctx context.Context, usernameFrom string, usernameTo string) (ex bool, err error) {
+func (repo *RepositoryNeo4j) CheckIfFollowRequestExists(ctx context.Context, usernameFrom string, usernameTo string) (bool, error) {
 	_, span := repo.tracer.Start(ctx, "RepositoryNeo4j.CheckIfFollowExists")
 	defer span.End()
 	session := repo.driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
-	defer func() {
-		err = session.Close()
-	}()
+	defer session.Close()
 
-	rez, err := session.ReadTransaction(func(tx neo4j.Transaction) (interface{}, error) {
+	rez, _ := session.ReadTransaction(func(tx neo4j.Transaction) (interface{}, error) {
 		result, err := tx.Run("MATCH (f:User {username: $from }), (t:User {username: $to}) RETURN EXISTS( (f)-[:FOLLOWS_REQUEST]->(t)) as rez", map[string]interface{}{"from": usernameFrom, "to": usernameTo})
 		if err != nil {
 			log.Println(err)
@@ -246,15 +251,13 @@ func (repo *RepositoryNeo4j) CheckIfFollowRequestExists(ctx context.Context, use
 	return rez.(bool), nil
 }
 
-func (repo *RepositoryNeo4j) CheckIfFollowExists(ctx context.Context, usernameFrom string, usernameTo string) (ex bool, err error) {
+func (repo *RepositoryNeo4j) CheckIfFollowExists(ctx context.Context, usernameFrom string, usernameTo string) (bool, error) {
 	_, span := repo.tracer.Start(ctx, "RepositoryNeo4j.CheckIfFollowExists")
 	defer span.End()
 	session := repo.driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
-	defer func() {
-		err = session.Close()
-	}()
+	defer session.Close()
 
-	rez, err := session.ReadTransaction(func(tx neo4j.Transaction) (interface{}, error) {
+	rez, _ := session.ReadTransaction(func(tx neo4j.Transaction) (interface{}, error) {
 		result, err := tx.Run("MATCH (f:User {username: $from }), (t:User {username: $to}) RETURN EXISTS( (f)-[:FOLLOWS]->(t)) as rez", map[string]interface{}{"from": usernameFrom, "to": usernameTo})
 		if err != nil {
 			log.Println(err)
@@ -284,15 +287,16 @@ func (repo *RepositoryNeo4j) CanAccessTweetOfAnotherUser(ctx context.Context, us
 	return repo.CheckIfFollowExists(ctx, usernameFromToken, usernameForAccess)
 
 }
-func (repo *RepositoryNeo4j) AcceptRejectFollowRequest(ctx context.Context, from string, to string, approved bool) (err error) {
+func (repo *RepositoryNeo4j) AcceptRejectFollowRequest(ctx context.Context, from string, to string, approved bool) error {
 	_, span := repo.tracer.Start(ctx, "RepositoryNeo4j.AcceptRejectFollowRequest")
 	defer span.End()
 	exists, _ := repo.CheckIfFollowRequestExists(ctx, from, to)
 	if !exists {
 		return nil
 	}
-	err = repo.RemoveFollowRequest(ctx, from, to)
+	err := repo.RemoveFollowRequest(ctx, from, to)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
 	if approved {
@@ -305,35 +309,36 @@ func (repo *RepositoryNeo4j) AcceptRejectFollowRequest(ctx context.Context, from
 
 	return nil
 }
-func (repo *RepositoryNeo4j) UpdateUser(ctx context.Context, isPrivate bool, authUsername string) (err error) {
+func (repo *RepositoryNeo4j) UpdateUser(ctx context.Context, isPrivate bool, authUsername string) error {
 	_, span := repo.tracer.Start(ctx, "RepositoryNeo4j.UpdateUser")
 	defer span.End()
 
 	session := repo.driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
 
-	defer func() {
-		err = session.Close()
-	}()
-	_, err = session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
+	defer session.Close()
+	_, er := session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
 		_, err := tx.Run("match (u:User {username:$username}) set u.private= $isPrivate", map[string]interface{}{"username": authUsername, "isPrivate": isPrivate})
 		if err != nil {
+			span.SetStatus(codes.Error, err.Error())
 			log.Println(err)
 			return nil, err
 		}
 		return nil, nil
 	})
 
-	return err
+	if er != nil {
+		span.SetStatus(codes.Error, er.Error())
+		return er
+	}
+	return nil
 }
-func (repo *RepositoryNeo4j) GetRecommendationsProfile(ctx context.Context, username string) (users []model.User, err error) {
+func (repo *RepositoryNeo4j) GetRecommendationsProfile(ctx context.Context, username string) ([]model.User, error) {
 	_, span := repo.tracer.Start(ctx, "RepositoryNeo4j.GetRecommendationsProfile")
 	defer span.End()
 	session := repo.driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
-	defer func() {
-		err = session.Close()
-	}()
+	defer session.Close()
 
-	rez, err := session.ReadTransaction(func(tx neo4j.Transaction) (interface{}, error) {
+	rez, _ := session.ReadTransaction(func(tx neo4j.Transaction) (interface{}, error) {
 		records, err := tx.Run("MATCH (u:User {username:$username })-[:FOLLOWS*2]-> (r:User) where not (u)-[:FOLLOWS]->(r) and not r.username =~ u.username RETURN r.username as username, r.private as private", map[string]interface{}{"username": username})
 		if err != nil {
 			log.Println(err)
@@ -348,19 +353,19 @@ func (repo *RepositoryNeo4j) GetRecommendationsProfile(ctx context.Context, user
 		}
 		return results, nil
 	})
+
 	if rez == nil || rez.([]model.User) == nil {
 		return []model.User{}, nil
 	}
 	return rez.([]model.User), nil
 }
-func (repo *RepositoryNeo4j) GetAllUsers(ctx context.Context, username string) (users []model.User, err error) {
+func (repo *RepositoryNeo4j) GetAllUsers(ctx context.Context, username string) ([]model.User, error) {
 	_, span := repo.tracer.Start(ctx, "RepositoryNeo4j.GetAllUsers")
 	defer span.End()
 	session := repo.driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
-	defer func() {
-		err = session.Close()
-	}()
-	rez, err := session.ReadTransaction(func(tx neo4j.Transaction) (interface{}, error) {
+	defer session.Close()
+
+	rez, _ := session.ReadTransaction(func(tx neo4j.Transaction) (interface{}, error) {
 		records, err := tx.Run("MATCH (u:User) where not u.username =~ $username RETURN u.username as username, u.private as private", map[string]interface{}{"username": username})
 		if err != nil {
 			log.Println(err)

@@ -2,6 +2,7 @@ package controller
 
 import (
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"net/http"
 	"social-graph/controller/json"
@@ -34,8 +35,10 @@ func (sgc *SocialGraphController) CreateFollow(w http.ResponseWriter, req *http.
 	}
 	err := sgc.socialGraphService.CreateFollow(ctx, authUser.Username, toUsername)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return
 	}
+
 }
 func (sgc *SocialGraphController) RemoveFollow(w http.ResponseWriter, req *http.Request) {
 	ctx, span := sgc.tracer.Start(req.Context(), "SocialGraphController.RemoveFollow")
@@ -44,6 +47,7 @@ func (sgc *SocialGraphController) RemoveFollow(w http.ResponseWriter, req *http.
 	authUser := ctx.Value("authUser").(model.AuthUser)
 	err := sgc.socialGraphService.RemoveFollow(ctx, authUser.Username, toUsername)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return
 	}
 }
@@ -57,6 +61,7 @@ func (sgc *SocialGraphController) GetFollowing(w http.ResponseWriter, req *http.
 	}
 	err = json.EncodeJson(w, users)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return
 	}
 }
@@ -66,10 +71,12 @@ func (sgc *SocialGraphController) GetNumberOfFollowing(w http.ResponseWriter, re
 	username := mux.Vars(req)["username"]
 	users, err := sgc.socialGraphService.GetFollowing(ctx, username)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return
 	}
 	err = json.EncodeJson(w, len(users))
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return
 	}
 }
@@ -80,10 +87,12 @@ func (sgc *SocialGraphController) GetFollowers(w http.ResponseWriter, req *http.
 	username := mux.Vars(req)["username"]
 	users, err := sgc.socialGraphService.GetFollowers(ctx, username)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return
 	}
 	err = json.EncodeJson(w, users)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return
 	}
 }
@@ -93,10 +102,12 @@ func (sgc *SocialGraphController) GetNumberOfFollowers(w http.ResponseWriter, re
 	username := mux.Vars(req)["username"]
 	users, err := sgc.socialGraphService.GetFollowers(ctx, username)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return
 	}
 	err = json.EncodeJson(w, len(users))
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return
 	}
 }
@@ -108,10 +119,12 @@ func (sgc *SocialGraphController) CheckIfFollowExists(w http.ResponseWriter, req
 	to := mux.Vars(req)["username"]
 	exists, err := sgc.socialGraphService.CheckIfFollowExists(ctx, authUser.Username, to)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return
 	}
 	err = json.EncodeJson(w, exists)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return
 	}
 }
@@ -124,6 +137,7 @@ func (sgc *SocialGraphController) AcceptRejectFollowRequest(w http.ResponseWrite
 	approved, _ := json.DecodeJson[model.Approved](req.Body)
 	err := sgc.socialGraphService.AcceptRejectFollowRequest(ctx, from, authUser.Username, approved.Approved)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return
 	}
 }
@@ -135,10 +149,12 @@ func (sgc *SocialGraphController) CheckIfFollowRequestExists(w http.ResponseWrit
 	from := mux.Vars(req)["username"]
 	exists, err := sgc.socialGraphService.CheckIfFollowRequestExists(ctx, from, authUser.Username)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return
 	}
 	err = json.EncodeJson(w, exists)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return
 	}
 }
@@ -149,10 +165,12 @@ func (sgc *SocialGraphController) GetAllFollowRequests(w http.ResponseWriter, re
 	authUser := ctx.Value("authUser").(model.AuthUser)
 	users, err := sgc.socialGraphService.GetAllFollowRequests(ctx, authUser.Username)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return
 	}
 	err = json.EncodeJson(w, users)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return
 	}
 }
@@ -162,10 +180,12 @@ func (sgc *SocialGraphController) GetRecommendationsProfile(w http.ResponseWrite
 	authUser := ctx.Value("authUser").(model.AuthUser)
 	users, err := sgc.socialGraphService.GetRecommendationsProfile(ctx, authUser.Username)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return
 	}
 	err = json.EncodeJson(w, users)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return
 	}
 }
