@@ -14,11 +14,6 @@ type User struct {
 	IsPrivate bool   `json:"private"`
 }
 
-type Follows struct {
-	From User `json:"from"`
-	To   User `json:"to"`
-}
-
 type Approved struct {
 	Approved bool `json:"approved"`
 }
