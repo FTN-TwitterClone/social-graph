@@ -2,9 +2,17 @@ package service
 
 import (
 	"context"
+	"github.com/FTN-TwitterClone/grpc-stubs/proto/tweet"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/metadata"
+	"log"
 	"social-graph/model"
 	"social-graph/repository"
+	"social-graph/tls"
 )
 
 type SocialGraphService struct {
@@ -37,6 +45,26 @@ func (s SocialGraphService) CreateFollow(ctx context.Context, fromUsername strin
 		if err != nil {
 			return err
 		}
+
+		conn, err := getgRPCConnection("tweet:9001")
+		defer conn.Close()
+		if err != nil {
+			span.SetStatus(codes.Error, err.Error())
+			return err
+		}
+
+		tweetService := tweet.NewTweetServiceClient(conn)
+		serviceCtx = metadata.AppendToOutgoingContext(serviceCtx, "authUsername", fromUsername)
+		u := tweet.User{
+			Username: toUsername,
+		}
+
+		_, error := tweetService.UpdateFeed(serviceCtx, &u)
+		if error != nil {
+			span.SetStatus(codes.Error, err.Error())
+			return error
+		}
+
 	}
 
 	return nil
@@ -91,9 +119,30 @@ func (s SocialGraphService) CheckIfFollowRequestExists(ctx context.Context, from
 	return exists, nil
 }
 func (s SocialGraphService) AcceptRejectFollowRequest(ctx context.Context, from string, to string, accepted bool) error {
-	ctx, span := s.tracer.Start(ctx, "SocialGraphService.AcceptRejectFollowRequest")
+	serviceCtx, span := s.tracer.Start(ctx, "SocialGraphService.AcceptRejectFollowRequest")
 	defer span.End()
-	err := s.repo.AcceptRejectFollowRequest(ctx, from, to, accepted)
+	err := s.repo.AcceptRejectFollowRequest(serviceCtx, from, to, accepted)
+	if accepted {
+		conn, err := getgRPCConnection("tweet:9001")
+		defer conn.Close()
+		if err != nil {
+			span.SetStatus(codes.Error, err.Error())
+			return err
+		}
+
+		tweetService := tweet.NewTweetServiceClient(conn)
+		serviceCtx = metadata.AppendToOutgoingContext(serviceCtx, "authUsername", to)
+		user := tweet.User{
+			Username: from,
+		}
+
+		_, error := tweetService.UpdateFeed(serviceCtx, &user)
+		if error != nil {
+			span.SetStatus(codes.Error, err.Error())
+			return error
+		}
+
+	}
 	if err != nil {
 		return err
 	}
@@ -129,4 +178,20 @@ func (s SocialGraphService) GetRecommendationsProfile(ctx context.Context, usern
 	}
 
 	return users, nil
+}
+func getgRPCConnection(address string) (*grpc.ClientConn, error) {
+	creds := credentials.NewTLS(tls.GetgRPCClientTLSConfig())
+
+	conn, err := grpc.DialContext(
+		context.Background(),
+		address,
+		grpc.WithTransportCredentials(creds),
+		grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
+	)
+
+	if err != nil {
+		log.Fatalf("Failed to start gRPC connection: %v", err)
+	}
+
+	return conn, err
 }
