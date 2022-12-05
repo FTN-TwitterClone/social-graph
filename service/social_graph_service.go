@@ -110,3 +110,23 @@ func (s SocialGraphService) GetAllFollowRequests(ctx context.Context, username s
 
 	return users, nil
 }
+func (s SocialGraphService) GetRecommendationsProfile(ctx context.Context, username string) ([]model.User, error) {
+	ctx, span := s.tracer.Start(ctx, "SocialGraphService.GetRecommendationsProfile")
+	defer span.End()
+
+	followersCount, err := s.repo.GetFollowers(ctx, username)
+	if len(followersCount) == 0 {
+		users, err := s.repo.GetAllUsers(ctx, username)
+		if err != nil {
+			return nil, err
+		}
+		return users, nil
+
+	}
+	users, err := s.repo.GetRecommendationsProfile(ctx, username)
+	if err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}

@@ -78,7 +78,7 @@ func (repo *RepositoryNeo4j) CreateNewUser(ctx context.Context, username string,
 	}()
 	_, err = session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
 
-		_, err := tx.Run("Create(u:User {username: $username, private: $private})", map[string]interface{}{"username": username, "private": isPrivate})
+		_, err := tx.Run("Merge(u:User {username: $username, private: $private})", map[string]interface{}{"username": username, "private": isPrivate})
 		if err != nil {
 			log.Println(err)
 			return nil, err
@@ -324,4 +324,61 @@ func (repo *RepositoryNeo4j) UpdateUser(ctx context.Context, isPrivate bool, aut
 	})
 
 	return err
+}
+func (repo *RepositoryNeo4j) GetRecommendationsProfile(ctx context.Context, username string) (users []model.User, err error) {
+	_, span := repo.tracer.Start(ctx, "RepositoryNeo4j.GetRecommendationsProfile")
+	defer span.End()
+	session := repo.driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
+	defer func() {
+		err = session.Close()
+	}()
+
+	rez, err := session.ReadTransaction(func(tx neo4j.Transaction) (interface{}, error) {
+		records, err := tx.Run("MATCH (u:User {username:$username })-[:FOLLOWS*2]-> (r:User) where not (u)-[:FOLLOWS]->(r) and not r.username =~ u.username RETURN r.username as username, r.private as private", map[string]interface{}{"username": username})
+		if err != nil {
+			log.Println(err)
+			return nil, err
+		}
+		var results []model.User
+		for records.Next() {
+			record := records.Record()
+			u, _ := record.Get("username")
+			p, _ := record.Get("private")
+			results = append(results, model.User{Username: u.(string), IsPrivate: p.(bool)})
+		}
+		return results, nil
+	})
+	if rez == nil || rez.([]model.User) == nil {
+		return []model.User{}, nil
+	}
+	return rez.([]model.User), nil
+}
+func (repo *RepositoryNeo4j) GetAllUsers(ctx context.Context, username string) (users []model.User, err error) {
+	_, span := repo.tracer.Start(ctx, "RepositoryNeo4j.GetAllUsers")
+	defer span.End()
+	session := repo.driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
+	defer func() {
+		err = session.Close()
+	}()
+	rez, err := session.ReadTransaction(func(tx neo4j.Transaction) (interface{}, error) {
+		records, err := tx.Run("MATCH (u:User) where not u.username =~ $username RETURN u.username as username, u.private as private", map[string]interface{}{"username": username})
+		if err != nil {
+			log.Println(err)
+
+			return nil, err
+		}
+		var results []model.User
+		for records.Next() {
+			record := records.Record()
+			u, _ := record.Get("username")
+			p, _ := record.Get("private")
+
+			results = append(results, model.User{Username: u.(string), IsPrivate: p.(bool)})
+		}
+		return results, nil
+	})
+	if rez == nil || rez.([]model.User) == nil {
+		return []model.User{}, nil
+	}
+	return rez.([]model.User), nil
 }

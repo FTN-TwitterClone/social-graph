@@ -63,10 +63,11 @@ func main() {
 	router.HandleFunc("/follows/{username}", socialGraphController.CheckIfFollowExists).Methods("GET")
 	router.HandleFunc("/follows-request/{username}", socialGraphController.CheckIfFollowRequestExists).Methods("GET")
 	router.HandleFunc("/follows-request", socialGraphController.GetAllFollowRequests).Methods("GET")
+	router.HandleFunc("/recommendations", socialGraphController.GetRecommendationsProfile).Methods("GET")
 	router.HandleFunc("/follows/{username}", socialGraphController.AcceptRejectFollowRequest).Methods("PATCH")
 
 	allowedHeaders := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
-	allowedMethods := handlers.AllowedMethods([]string{"GET", "POST", "PUT", "HEAD", "OPTIONS"})
+	allowedMethods := handlers.AllowedMethods([]string{"GET", "POST", "PUT", "HEAD", "OPTIONS", "PATCH", "DELETE"})
 	allowedOrigins := handlers.AllowedOrigins([]string{"*"})
 
 	// start server

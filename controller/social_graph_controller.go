@@ -156,3 +156,16 @@ func (sgc *SocialGraphController) GetAllFollowRequests(w http.ResponseWriter, re
 		return
 	}
 }
+func (sgc *SocialGraphController) GetRecommendationsProfile(w http.ResponseWriter, req *http.Request) {
+	ctx, span := sgc.tracer.Start(req.Context(), "SocialGraphController.GetRecommendationsProfile")
+	defer span.End()
+	authUser := ctx.Value("authUser").(model.AuthUser)
+	users, err := sgc.socialGraphService.GetRecommendationsProfile(ctx, authUser.Username)
+	if err != nil {
+		return
+	}
+	err = json.EncodeJson(w, users)
+	if err != nil {
+		return
+	}
+}
