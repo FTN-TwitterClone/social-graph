@@ -23,26 +23,6 @@ func NewgRPCSocialGraphService(tracer trace.Tracer, repo repository.SocialGraphR
 	}
 }
 
-func (s gRPCSocialGraphService) RegisterUser(ctx context.Context, user *social_graph.SocialGraphUser) (*empty.Empty, error) {
-	serviceCtx, span := s.tracer.Start(ctx, "gRPCSocialGraphService.RegisterUser")
-	defer span.End()
-	err := s.repo.CreateNewUser(serviceCtx, user.Username, true)
-	if err != nil {
-		return nil, err
-	}
-	return new(empty.Empty), nil
-}
-
-func (s gRPCSocialGraphService) RegisterBusinessUser(ctx context.Context, user *social_graph.SocialGraphBusinessUser) (*empty.Empty, error) {
-	serviceCtx, span := s.tracer.Start(ctx, "gRPCSocialGraphService.RegisterBusinessUser")
-	defer span.End()
-	err := s.repo.CreateNewUser(serviceCtx, user.Username, false)
-	if err != nil {
-		return nil, err
-	}
-	return new(empty.Empty), nil
-}
-
 func (s gRPCSocialGraphService) CheckVisibility(ctx context.Context, gRPCUsername *social_graph.SocialGraphUsername) (*social_graph.SocialGraphVisibilityUserResponse, error) {
 	serviceCtx, span := s.tracer.Start(ctx, "gRPCSocialGraphService.CheckVisibility")
 	defer span.End()
