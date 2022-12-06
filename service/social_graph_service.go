@@ -171,12 +171,15 @@ func (s SocialGraphService) GetRecommendationsProfile(ctx context.Context, usern
 	serviceCtx, span := s.tracer.Start(ctx, "SocialGraphService.GetRecommendationsProfile")
 	defer span.End()
 
-	followersCount, err := s.repo.GetFollowers(serviceCtx, username)
-	if len(followersCount) == 0 {
-		users, err := s.repo.GetAllUsers(serviceCtx, username)
+	followings, err := s.repo.GetFollowing(serviceCtx, username)
+	if len(followings) == 0 {
+		users, err := s.repo.GetAllUsersNotFollowedByUser(serviceCtx, username)
 		if err != nil {
 			span.SetStatus(codes.Error, err.Error())
 			return nil, err
+		}
+		if len(users) > 10 {
+			return users[:10], nil
 		}
 		return users, nil
 
@@ -185,6 +188,18 @@ func (s SocialGraphService) GetRecommendationsProfile(ctx context.Context, usern
 	if err != nil {
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
+	}
+	if len(users) == 0 {
+		users, err := s.repo.GetAllUsersNotFollowedByUser(serviceCtx, username)
+		if err != nil {
+			span.SetStatus(codes.Error, err.Error())
+			return nil, err
+		}
+		if len(users) > 10 {
+			return users[:10], nil
+		}
+		return users, nil
+
 	}
 
 	return users, nil
