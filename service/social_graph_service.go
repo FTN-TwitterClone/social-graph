@@ -128,27 +128,6 @@ func (s SocialGraphService) AcceptRejectFollowRequest(ctx context.Context, from 
 	serviceCtx, span := s.tracer.Start(ctx, "SocialGraphService.AcceptRejectFollowRequest")
 	defer span.End()
 	err := s.repo.AcceptRejectFollowRequest(serviceCtx, from, to, accepted)
-	if accepted {
-		conn, err := getgRPCConnection("tweet:9001")
-		defer conn.Close()
-		if err != nil {
-			span.SetStatus(codes.Error, err.Error())
-			return err
-		}
-
-		tweetService := tweet.NewTweetServiceClient(conn)
-		serviceCtx = metadata.AppendToOutgoingContext(serviceCtx, "authUsername", to)
-		user := tweet.User{
-			Username: from,
-		}
-
-		_, error := tweetService.UpdateFeed(serviceCtx, &user)
-		if error != nil {
-			span.SetStatus(codes.Error, err.Error())
-			return error
-		}
-
-	}
 	if err != nil {
 		span.SetStatus(codes.Error, err.Error())
 		return err
