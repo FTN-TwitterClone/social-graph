@@ -359,17 +359,16 @@ func (repo *RepositoryNeo4j) GetRecommendationsProfile(ctx context.Context, user
 	}
 	return rez.([]model.User), nil
 }
-func (repo *RepositoryNeo4j) GetAllUsers(ctx context.Context, username string) ([]model.User, error) {
-	_, span := repo.tracer.Start(ctx, "RepositoryNeo4j.GetAllUsers")
+func (repo *RepositoryNeo4j) GetAllUsersNotFollowedByUser(ctx context.Context, username string) ([]model.User, error) {
+	_, span := repo.tracer.Start(ctx, "RepositoryNeo4j.GetAllUsersNotFollowedByUser")
 	defer span.End()
 	session := repo.driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
 	defer session.Close()
 
 	rez, _ := session.ReadTransaction(func(tx neo4j.Transaction) (interface{}, error) {
-		records, err := tx.Run("MATCH (u:User) where not u.username =~ $username RETURN u.username as username, u.private as private", map[string]interface{}{"username": username})
+		records, err := tx.Run("MATCH (u:User {username:$username}), (p:User) WHERE NOT (u)-[:FOLLOWS]->(p) and NOT (u)-[:FOLLOWS_REQUEST]->(p) AND p.username <> $myUsername RETURN p.username as username, p.private as private", map[string]interface{}{"username": username, "myUsername": username})
 		if err != nil {
 			log.Println(err)
-
 			return nil, err
 		}
 		var results []model.User
