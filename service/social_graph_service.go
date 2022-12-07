@@ -58,11 +58,12 @@ func (s SocialGraphService) CreateFollow(ctx context.Context, fromUsername strin
 
 		tweetService := tweet.NewTweetServiceClient(conn)
 		serviceCtx = metadata.AppendToOutgoingContext(serviceCtx, "authUsername", fromUsername)
-		u := tweet.User{
-			Username: toUsername,
+		request := tweet.Request{
+			From: fromUsername,
+			To:   toUsername,
 		}
 
-		_, e := tweetService.UpdateFeed(serviceCtx, &u)
+		_, e := tweetService.UpdateFeed(serviceCtx, &request)
 		if e != nil {
 			span.SetStatus(codes.Error, e.Error())
 			return e
@@ -128,10 +129,32 @@ func (s SocialGraphService) AcceptRejectFollowRequest(ctx context.Context, from 
 	serviceCtx, span := s.tracer.Start(ctx, "SocialGraphService.AcceptRejectFollowRequest")
 	defer span.End()
 	err := s.repo.AcceptRejectFollowRequest(serviceCtx, from, to, accepted)
+	if accepted {
+		conn, errConn := getgRPCConnection("tweet:9001")
+		defer conn.Close()
+		if errConn != nil {
+			span.SetStatus(codes.Error, errConn.Error())
+			return errConn
+		}
+
+		tweetService := tweet.NewTweetServiceClient(conn)
+		serviceCtx = metadata.AppendToOutgoingContext(serviceCtx, "authUsername", to)
+		request := tweet.Request{
+			From: from,
+			To:   to,
+		}
+
+		_, e := tweetService.UpdateFeed(serviceCtx, &request)
+		if e != nil {
+			span.SetStatus(codes.Error, e.Error())
+			return e
+		}
+	}
 	if err != nil {
 		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
+
 	return nil
 }
 
