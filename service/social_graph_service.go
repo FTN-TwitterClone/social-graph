@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"log"
+	"social-graph/app_errors"
 	"social-graph/model"
 	"social-graph/repository"
 	"social-graph/tls"
@@ -27,33 +28,33 @@ func NewSocialGraphService(repo repository.SocialGraphRepository, tracer trace.T
 	}
 }
 
-func (s SocialGraphService) CreateFollow(ctx context.Context, fromUsername string, toUsername string) error {
+func (s SocialGraphService) CreateFollow(ctx context.Context, fromUsername string, toUsername string) *app_errors.AppError {
 	serviceCtx, span := s.tracer.Start(ctx, "SocialGraphService.CreateFollow")
 	defer span.End()
 	user, er := s.repo.GetUser(serviceCtx, toUsername)
-	if er != nil {
+	if user == nil {
 		span.SetStatus(codes.Error, er.Error())
-		return er
+		return &app_errors.AppError{404, "Username don't exists"}
 	}
 	if user.IsPrivate {
 		err := s.repo.SaveFollowRequest(serviceCtx, fromUsername, toUsername)
 		if err != nil {
 			span.SetStatus(codes.Error, err.Error())
-			return err
+			return &app_errors.AppError{500, ""}
 		}
 
 	} else {
 		err := s.repo.SaveApprovedFollow(serviceCtx, fromUsername, toUsername)
 		if err != nil {
 			span.SetStatus(codes.Error, err.Error())
-			return err
+			return &app_errors.AppError{500, ""}
 		}
 
 		conn, errConn := getgRPCConnection("tweet:9001")
 		defer conn.Close()
 		if errConn != nil {
 			span.SetStatus(codes.Error, errConn.Error())
-			return errConn
+			return &app_errors.AppError{500, ""}
 		}
 
 		tweetService := tweet.NewTweetServiceClient(conn)
@@ -66,7 +67,7 @@ func (s SocialGraphService) CreateFollow(ctx context.Context, fromUsername strin
 		_, e := tweetService.UpdateFeed(serviceCtx, &request)
 		if e != nil {
 			span.SetStatus(codes.Error, e.Error())
-			return e
+			return &app_errors.AppError{500, ""}
 		}
 	}
 	return nil
