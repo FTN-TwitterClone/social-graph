@@ -10,6 +10,8 @@ import (
 	"log"
 	"os"
 	"social-graph/model"
+	"strconv"
+	"time"
 )
 
 type RepositoryNeo4j struct {
@@ -428,9 +430,11 @@ func (repo *RepositoryNeo4j) GetTargetGroupUser(ctx context.Context, username st
 	session := repo.driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
 	defer session.Close()
 	rez, _ := session.ReadTransaction(func(tx neo4j.Transaction) (interface{}, error) {
+		today := time.Now().Year()
 		records, err := tx.Run("Match (u:User) match (p:User {username:$username})"+
-			" WHERE NOT (u)-[:FOLLOWS]->(p) AND u.username <> $usernameBusiness and "+
-			" $minAge <= u.yearOfBirth <= $maxAge and ToLower(u.town)=~ ToLower($town) and ToLower(u.gender) =~ ToLower($gender) return u.username as username",
+			" WHERE NOT (u)-[:FOLLOWS]->(p) AND u.username <> $usernameBusiness and $minAge <= ("+strconv.Itoa(today)+
+			" - u.yearOfBirth) <= $maxAge and ToLower(u.town)=~ ToLower($town) and ToLower(u.gender) =~ ToLower($gender) "+
+			"return u.username as username",
 			map[string]interface{}{"username": username, "town": targetUserGroup.Town, "gender": targetUserGroup.Gender,
 				"minAge": targetUserGroup.MinAge, "maxAge": targetUserGroup.MaxAge, "usernameBusiness": username})
 		if err != nil {
