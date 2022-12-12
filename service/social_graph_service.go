@@ -31,11 +31,18 @@ func NewSocialGraphService(repo repository.SocialGraphRepository, tracer trace.T
 func (s SocialGraphService) CreateFollow(ctx context.Context, fromUsername string, toUsername string) *app_errors.AppError {
 	serviceCtx, span := s.tracer.Start(ctx, "SocialGraphService.CreateFollow")
 	defer span.End()
+
 	user, er := s.repo.GetUser(serviceCtx, toUsername)
-	if user == nil {
+
+	if er != nil {
 		span.SetStatus(codes.Error, er.Error())
-		return &app_errors.AppError{404, "Username don't exists"}
+		return &app_errors.AppError{Code: 500, Message: er.Error()}
 	}
+
+	if user == nil {
+		return &app_errors.AppError{Code: 404, Message: "Username don't exists"}
+	}
+
 	if user.IsPrivate {
 		err := s.repo.SaveFollowRequest(serviceCtx, fromUsername, toUsername)
 		if err != nil {

@@ -66,7 +66,11 @@ func (repo *RepositoryNeo4j) GetUser(ctx context.Context, username string) (*mod
 	})
 	if er != nil {
 		span.SetStatus(codes.Error, er.Error())
-		return &model.User{}, er
+		return nil, er
+	}
+
+	if rez == nil {
+		return nil, nil
 	}
 
 	return rez.(*model.User), nil
