@@ -9,6 +9,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/net/context"
 	"os"
+	"social-graph/model"
 	"social-graph/repository"
 	"social-graph/tracing"
 )
@@ -71,16 +72,9 @@ func (h RegisterUserHandler) handleSaveSocialGraph(ctx context.Context, user New
 	handlerCtx, span := h.tracer.Start(ctx, "RegisterUserHandler.handleSaveSocialGraph")
 	defer span.End()
 
-	//TODO: save user with all details
-	var private bool
+	u := model.User{Username: user.Username, Town: user.Town, Gender: user.Gender, YearOfBirth: user.YearOfBirth, IsPrivate: user.Private}
 
-	if user.Role == "ROLE_USER" {
-		private = true
-	} else {
-		private = false
-	}
-
-	err := h.repo.CreateNewUser(handlerCtx, user.Username, private)
+	err := h.repo.CreateNewUser(handlerCtx, u)
 	if err != nil {
 		span.SetStatus(codes.Error, err.Error())
 

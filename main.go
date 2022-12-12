@@ -55,6 +55,7 @@ func main() {
 
 	socialGraphController := controller.NewSocialGraphController(socialGraphService, tracer)
 	router := mux.NewRouter()
+	router.StrictSlash(true)
 	router.Use(
 		tracing.ExtractTraceInfoMiddleware,
 		jwt.ExtractJWTUserMiddleware(tracer),

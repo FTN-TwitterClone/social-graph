@@ -36,6 +36,7 @@ func (sgc *SocialGraphController) CreateFollow(w http.ResponseWriter, req *http.
 	err := sgc.socialGraphService.CreateFollow(ctx, authUser.Username, toUsername)
 	if err != nil {
 		span.SetStatus(codes.Error, err.Error())
+		http.Error(w, err.Message, err.Code)
 		return
 	}
 
@@ -146,8 +147,8 @@ func (sgc *SocialGraphController) CheckIfFollowRequestExists(w http.ResponseWrit
 	ctx, span := sgc.tracer.Start(req.Context(), "SocialGraphController.CheckIfFollowRequestExists")
 	defer span.End()
 	authUser := ctx.Value("authUser").(model.AuthUser)
-	from := mux.Vars(req)["username"]
-	exists, err := sgc.socialGraphService.CheckIfFollowRequestExists(ctx, from, authUser.Username)
+	to := mux.Vars(req)["username"]
+	exists, err := sgc.socialGraphService.CheckIfFollowRequestExists(ctx, authUser.Username, to)
 	if err != nil {
 		span.SetStatus(codes.Error, err.Error())
 		return
