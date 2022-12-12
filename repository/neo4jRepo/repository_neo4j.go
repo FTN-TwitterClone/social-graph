@@ -62,7 +62,7 @@ func (repo *RepositoryNeo4j) GetUser(ctx context.Context, username string) (*mod
 		}
 		u, _ := r.Get("username")
 		p, _ := r.Get("private")
-		return model.User{Username: u.(string), IsPrivate: p.(bool)}, nil
+		return &model.User{Username: u.(string), IsPrivate: p.(bool)}, nil
 	})
 	if er != nil {
 		span.SetStatus(codes.Error, er.Error())
@@ -70,7 +70,7 @@ func (repo *RepositoryNeo4j) GetUser(ctx context.Context, username string) (*mod
 	}
 
 	if rez == nil {
-		return nil, nil
+		return nil, errors.New("user don't exist")
 	}
 
 	return rez.(*model.User), nil
@@ -85,7 +85,7 @@ func (repo *RepositoryNeo4j) CreateNewUser(ctx context.Context, user model.User)
 	defer session.Close()
 	_, err := session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
 
-		_, err := tx.Run("Merge(u:User {username: $username, town: $town, gender: $gender, age: $age, private: $private})", map[string]interface{}{"username": user.Username, "town": user.Town, "gender": user.Gender, "age": user.YearOfBirth, "private": user.IsPrivate})
+		_, err := tx.Run("Merge(u:User {username: $username, town: $town, gender: $gender, yearOfBirth: $yearOfBirth, private: $private})", map[string]interface{}{"username": user.Username, "town": user.Town, "gender": user.Gender, "yearOfBirth": user.YearOfBirth, "private": user.IsPrivate})
 		if err != nil {
 			span.SetStatus(codes.Error, err.Error())
 			log.Println(err)
@@ -284,10 +284,11 @@ func (repo *RepositoryNeo4j) CanAccessTweetOfAnotherUser(ctx context.Context, us
 	if usernameFromToken == usernameForAccess {
 		return true, nil
 	}
-	userForAccess, _ := repo.GetUser(ctx, usernameForAccess)
-	if userForAccess == nil {
-		return false, errors.New("user don't exists")
+	userForAccess, err := repo.GetUser(ctx, usernameForAccess)
+	if err != nil {
+		return false, errors.New("user don't exist")
 	}
+
 	if !userForAccess.IsPrivate {
 		return true, nil
 	}
@@ -347,7 +348,7 @@ func (repo *RepositoryNeo4j) GetRecommendationsProfile(ctx context.Context, user
 	defer session.Close()
 
 	rez, _ := session.ReadTransaction(func(tx neo4j.Transaction) (interface{}, error) {
-		records, err := tx.Run("MATCH (u:User {username:$username })-[:FOLLOWS*2]-> (r:User) where not (u)-[:FOLLOWS]->(r) and not r.username =~ u.username RETURN r.username as username, r.private as private", map[string]interface{}{"username": username})
+		records, err := tx.Run("MATCH (u:User {username:$username })-[:FOLLOWS*2]-> (r:User) where not (u)-[:FOLLOWS]->(r) and not (u)-[:FOLLOWS_REQUEST]->(r) and not r.username =~ u.username RETURN DISTINCT r.username as username, r.private as private limit 10", map[string]interface{}{"username": username})
 		if err != nil {
 			log.Println(err)
 			return nil, err
@@ -374,7 +375,34 @@ func (repo *RepositoryNeo4j) GetAllUsersNotFollowedByUser(ctx context.Context, u
 	defer session.Close()
 
 	rez, _ := session.ReadTransaction(func(tx neo4j.Transaction) (interface{}, error) {
-		records, err := tx.Run("MATCH (u:User {username:$username}), (p:User) WHERE NOT (u)-[:FOLLOWS]->(p) and NOT (u)-[:FOLLOWS_REQUEST]->(p) AND p.username <> $myUsername RETURN p.username as username, p.private as private", map[string]interface{}{"username": username, "myUsername": username})
+		records, err := tx.Run("MATCH (u:User {username:$username}), (p:User) WHERE NOT (u)-[:FOLLOWS]->(p) and NOT (u)-[:FOLLOWS_REQUEST]->(p) AND p.username <> $myUsername RETURN p.username as username, p.private as private limit 10", map[string]interface{}{"username": username, "myUsername": username})
+		if err != nil {
+			log.Println(err)
+			return nil, err
+		}
+		var results []model.User
+		for records.Next() {
+			record := records.Record()
+			u, _ := record.Get("username")
+			p, _ := record.Get("private")
+
+			results = append(results, model.User{Username: u.(string), IsPrivate: p.(bool)})
+		}
+		return results, nil
+	})
+	if rez == nil || rez.([]model.User) == nil {
+		return []model.User{}, nil
+	}
+	return rez.([]model.User), nil
+}
+func (repo *RepositoryNeo4j) GetAllUsersNotFollowedByUserFromSameTown(ctx context.Context, username string) ([]model.User, error) {
+	_, span := repo.tracer.Start(ctx, "RepositoryNeo4j.GetAllUsersNotFollowedByUserFromSameTown")
+	defer span.End()
+	session := repo.driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
+	defer session.Close()
+
+	rez, _ := session.ReadTransaction(func(tx neo4j.Transaction) (interface{}, error) {
+		records, err := tx.Run("MATCH (u:User {username:$username}), (p:User) WHERE NOT (u)-[:FOLLOWS]->(p) and NOT (u)-[:FOLLOWS_REQUEST]->(p) AND p.username <> $myUsername and ToLower(p.town) =~ ToLower(u.town) RETURN p.username as username, p.private as private limit 10", map[string]interface{}{"username": username, "myUsername": username})
 		if err != nil {
 			log.Println(err)
 			return nil, err
@@ -400,8 +428,11 @@ func (repo *RepositoryNeo4j) GetTargetGroupUser(ctx context.Context, username st
 	session := repo.driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
 	defer session.Close()
 	rez, _ := session.ReadTransaction(func(tx neo4j.Transaction) (interface{}, error) {
-		records, err := tx.Run("Match (u:User {town: $town, gender: $gender}) match (p:User {username:$username}) WHERE NOT (u)-[:FOLLOWS]->(p) AND u.username <> $usernameBissnis and  20 <= u.age <= 30 return u.username as username",
-			map[string]interface{}{"username": username, "town": targetUserGroup.Town, "gender": targetUserGroup.Gender, "minAge": targetUserGroup.MinAge, "maxAge": targetUserGroup.MaxAge, "usernameBissnis": username})
+		records, err := tx.Run("Match (u:User) match (p:User {username:$username})"+
+			" WHERE NOT (u)-[:FOLLOWS]->(p) AND u.username <> $usernameBusiness and "+
+			" $minAge <= u.yearOfBirth <= $maxAge and ToLower(u.town)=~ ToLower($town) and ToLower(u.gender) =~ ToLower($gender) return u.username as username",
+			map[string]interface{}{"username": username, "town": targetUserGroup.Town, "gender": targetUserGroup.Gender,
+				"minAge": targetUserGroup.MinAge, "maxAge": targetUserGroup.MaxAge, "usernameBusiness": username})
 		if err != nil {
 			log.Println(err)
 

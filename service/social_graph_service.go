@@ -36,10 +36,6 @@ func (s SocialGraphService) CreateFollow(ctx context.Context, fromUsername strin
 
 	if er != nil {
 		span.SetStatus(codes.Error, er.Error())
-		return &app_errors.AppError{Code: 500, Message: er.Error()}
-	}
-
-	if user == nil {
 		return &app_errors.AppError{Code: 404, Message: "Username don't exists"}
 	}
 
@@ -183,36 +179,47 @@ func (s SocialGraphService) GetRecommendationsProfile(ctx context.Context, usern
 
 	followings, err := s.repo.GetFollowing(serviceCtx, username)
 	if len(followings) == 0 {
-		users, err := s.repo.GetAllUsersNotFollowedByUser(serviceCtx, username)
+		usersFromSameTown, err := s.repo.GetAllUsersNotFollowedByUserFromSameTown(serviceCtx, username)
 		if err != nil {
 			span.SetStatus(codes.Error, err.Error())
 			return nil, err
 		}
-		if len(users) > 10 {
-			return users[:10], nil
+		if len(usersFromSameTown) == 0 {
+			users, err := s.repo.GetAllUsersNotFollowedByUser(serviceCtx, username)
+			if err != nil {
+				span.SetStatus(codes.Error, err.Error())
+				return nil, err
+			}
+			return users, nil
 		}
-		return users, nil
+
+		return usersFromSameTown, nil
 
 	}
-	users, err := s.repo.GetRecommendationsProfile(serviceCtx, username)
+	recemmendedUsers, err := s.repo.GetRecommendationsProfile(serviceCtx, username)
 	if err != nil {
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
-	if len(users) == 0 {
-		users, err := s.repo.GetAllUsersNotFollowedByUser(serviceCtx, username)
+	if len(recemmendedUsers) == 0 {
+		usersFromSameTown, err := s.repo.GetAllUsersNotFollowedByUserFromSameTown(serviceCtx, username)
 		if err != nil {
 			span.SetStatus(codes.Error, err.Error())
 			return nil, err
 		}
-		if len(users) > 10 {
-			return users[:10], nil
+		if len(usersFromSameTown) == 0 {
+			users, err := s.repo.GetAllUsersNotFollowedByUser(serviceCtx, username)
+			if err != nil {
+				span.SetStatus(codes.Error, err.Error())
+				return nil, err
+			}
+			return users, nil
 		}
-		return users, nil
+		return usersFromSameTown, nil
 
 	}
 
-	return users, nil
+	return recemmendedUsers, nil
 }
 func getgRPCConnection(address string) (*grpc.ClientConn, error) {
 	creds := credentials.NewTLS(tls.GetgRPCClientTLSConfig())
